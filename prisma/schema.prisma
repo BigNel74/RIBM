@@ -1,0 +1,860 @@
+// RIBM Revenue Spine App OS — MVP 1 schema.
+// Documentation: /docs/DOMAIN_MODEL.md. Decisions: /docs/DECISIONS.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  ADMIN
+  OPERATOR
+  SALES_ADVISOR
+  CONTRACTOR
+  CLIENT
+}
+
+enum EvidenceState {
+  VERIFIED
+  CLIENT_PROVIDED
+  ASSUMPTION
+  NOT_VERIFIED
+}
+
+enum EvidenceType {
+  WEBSITE_OBSERVATION
+  SCREENSHOT
+  CLIENT_STATEMENT
+  DOCUMENT
+  ANALYTICS_EXPORT
+  CALL_NOTE
+  THIRD_PARTY_LISTING
+  OTHER
+}
+
+enum OpportunityStage {
+  TARGET
+  CONTACTED
+  CONVERSATION
+  QUALIFIED
+  DIAGNOSTIC
+  PRESCRIPTION_PENDING
+  PROPOSAL
+  WON
+  LOST
+  DEFERRED
+  DISQUALIFIED
+}
+
+enum QualificationState {
+  UNASSESSED
+  IN_PROGRESS
+  QUALIFIED
+  DISQUALIFIED
+}
+
+enum DemandSourceState {
+  UNKNOWN
+  NONE
+  WEAK
+  MEANINGFUL
+}
+
+enum AuthorityState {
+  UNKNOWN
+  PARTIAL
+  CONFIRMED
+}
+
+enum UrgencyLevel {
+  UNKNOWN
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AuthorityLevel {
+  UNKNOWN
+  DECISION_MAKER
+  INFLUENCER
+  GATEKEEPER
+}
+
+enum DecisionRole {
+  UNKNOWN
+  ECONOMIC_BUYER
+  CHAMPION
+  TECHNICAL_EVALUATOR
+  END_USER
+}
+
+enum OfferStatus {
+  PRIMARY
+  TEST
+  POST_SALE
+  DEFERRED
+  RETIRED
+}
+
+enum OfferValidationState {
+  TESTING
+  VALIDATED
+}
+
+enum QaStatus {
+  NOT_READY
+  READY_FOR_QA
+  QA_FAILED
+  QA_PASSED
+  FINALIZED
+}
+
+enum SectionStatus {
+  NOT_STARTED
+  DRAFT
+  COMPLETE
+}
+
+enum ReportStatus {
+  DRAFT
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum ValidationDecisionState {
+  DOUBLE
+  TWEAK
+  PAUSE
+  KILL
+}
+
+enum ConfidenceDimension {
+  DEMAND
+  WILLINGNESS_TO_PAY
+  DELIVERY
+  OUTCOME
+  RECURRING_VALUE
+}
+
+enum ConfidenceLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum HypothesisStatus {
+  DRAFT
+  RUNNING
+  CONCLUDED
+}
+
+enum ClaimType {
+  OUTCOME
+  AVERAGE
+  MARGIN
+  SPEED
+  TESTIMONIAL
+  BENCHMARK
+}
+
+enum ClaimStatus {
+  DRAFT
+  VERIFIED
+  EXPIRED
+  BLOCKED
+}
+
+enum VersionStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATE_CHANGE
+  SCORE_CHANGE
+  EVIDENCE_STATE_CHANGE
+  FINALIZE
+  PUBLISH
+  APPROVE
+  PERMISSION_CHANGE
+  FRAMEWORK_CHANGE
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+}
+
+// ─────────────────────── Identity and access ───────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role
+  /// Required when role = CLIENT. A CLIENT user sees only this client's published reports.
+  clientId     String?
+  client       Client?  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions            Session[]
+  auditLogs           AuditLog[]
+  evidenceCaptured    EvidenceItem[]       @relation("EvidenceCapturedBy")
+  diagnosticsCreated  Diagnostic[]         @relation("DiagnosticCreatedBy")
+  diagnosticsFinal    Diagnostic[]         @relation("DiagnosticFinalizedBy")
+  qaRuns              QaRun[]
+  reportsPublished    ClientReport[]       @relation("ReportPublishedBy")
+  revenuePeriods      RevenuePeriod[]
+  validationDecisions ValidationDecision[]
+  claimsOwned         MarketingClaim[]     @relation("ClaimOwner")
+  claimsApproved      MarketingClaim[]     @relation("ClaimApprover")
+  frameworksAdopted   FrameworkVersion[]   @relation("FrameworkAdoptedBy")
+
+  @@index([clientId])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  /// SHA-256 of the opaque cookie token. The raw token is never stored.
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  userAgent  String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────── Commercial ───────────────────────────
+
+model Client {
+  id               String   @id @default(cuid())
+  legalName        String
+  displayName      String
+  website          String?
+  industry         String?
+  market           String?
+  location         String?
+  businessModel    String?
+  primaryObjective String?
+  /// Internal only. Never projected to CLIENT users.
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users         User[]
+  contacts      Contact[]
+  opportunities Opportunity[]
+  diagnostics   Diagnostic[]
+  evidence      EvidenceItem[]
+  reports       ClientReport[]
+}
+
+model Contact {
+  id             String         @id @default(cuid())
+  clientId       String
+  client         Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name           String
+  title          String?
+  email          String?
+  phone          String?
+  authorityLevel AuthorityLevel @default(UNKNOWN)
+  decisionRole   DecisionRole   @default(UNKNOWN)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  primaryFor Opportunity[]
+
+  @@index([clientId])
+}
+
+model Offer {
+  id                   String               @id @default(cuid())
+  name                 String               @unique
+  aliases              String[]
+  status               OfferStatus
+  validationState      OfferValidationState @default(TESTING)
+  description          String?
+  edition              String?
+  /// Required true (with a basis) before VALIDATED — see 00 memo, DECISIONS C-11.
+  positiveUnitEconomics Boolean             @default(false)
+  unitEconomicsBasis   String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  opportunities Opportunity[]
+  hypotheses    Hypothesis[]
+  confidence    OfferConfidence[]
+}
+
+model Opportunity {
+  id                     String             @id @default(cuid())
+  clientId               String
+  client                 Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  primaryContactId       String?
+  primaryContact         Contact?           @relation(fields: [primaryContactId], references: [id], onDelete: SetNull)
+  offerId                String?
+  offer                  Offer?             @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  stage                  OpportunityStage   @default(TARGET)
+  stageChangedAt         DateTime           @default(now())
+  businessObjective      String?
+  problemHypothesis      String?
+  economicContext        String?
+  currentSystems         String?
+  urgency                UrgencyLevel       @default(UNKNOWN)
+  authorityState         AuthorityState     @default(UNKNOWN)
+  budgetSignal           String?
+  demandSourceState      DemandSourceState  @default(UNKNOWN)
+  qualificationState     QualificationState @default(UNASSESSED)
+  nextAction             String?
+  nextActionDate         DateTime?
+  disqualificationReason String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  diagnostics Diagnostic[]
+
+  @@index([clientId])
+  @@index([stage])
+  @@index([nextActionDate])
+}
+
+/// Monthly Revenue Command inputs. Rates are derived from counts so sufficiency can be checked.
+model RevenuePeriod {
+  id                         String   @id @default(cuid())
+  /// First day of the month (UTC).
+  periodStart                DateTime @unique @db.Date
+  cashTarget                 Decimal  @db.Decimal(12, 2)
+  collectedToDate            Decimal  @default(0) @db.Decimal(12, 2)
+  contractedNearTerm         Decimal  @default(0) @db.Decimal(12, 2)
+  recurringRevenue           Decimal  @default(0) @db.Decimal(12, 2)
+  avgFirstSaleRevenue        Decimal? @db.Decimal(12, 2)
+  /// Trailing decided proposals (won + lost) and wins among them.
+  decidedProposals           Int      @default(0)
+  wonProposals               Int      @default(0)
+  /// Trailing qualified conversations and proposals that resulted from them.
+  qualifiedConversations     Int      @default(0)
+  proposalsFromConversations Int      @default(0)
+  openOpportunityCount       Int      @default(0)
+  openProposalCount          Int      @default(0)
+  founderCapacityHours       Decimal? @db.Decimal(6, 1)
+  founderCommittedHours      Decimal? @db.Decimal(6, 1)
+  enteredById                String
+  enteredBy                  User     @relation(fields: [enteredById], references: [id], onDelete: Restrict)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+// ──────────────────────── Methodology versions ────────────────────────
+
+model FrameworkVersion {
+  id          String        @id @default(cuid())
+  code        String        @unique
+  label       String
+  status      VersionStatus @default(DRAFT)
+  notes       String?
+  /// Founder adoption record (DECISIONS C-02). Null until formally adopted.
+  adoptedAt   DateTime?
+  adoptedById String?
+  adoptedBy   User?         @relation("FrameworkAdoptedBy", fields: [adoptedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime      @default(now())
+
+  zones       DiagnosticZoneDefinition[]
+  sections    DiagnosticSectionDefinition[]
+  diagnostics Diagnostic[]
+  reports     ClientReport[]
+}
+
+model ScoringVersion {
+  id        String        @id @default(cuid())
+  code      String        @unique
+  label     String
+  status    VersionStatus @default(DRAFT)
+  /// Score thresholds and funnel sufficiency threshold (DECISIONS C-12, C-13).
+  rules     Json
+  notes     String?
+  createdAt DateTime      @default(now())
+
+  diagnostics Diagnostic[]
+  zoneScores  ZoneScore[]
+  reports     ClientReport[]
+}
+
+model PromptVersion {
+  id         String        @id @default(cuid())
+  code       String        @unique
+  purpose    String
+  /// INTERNAL. Never selected in any CLIENT-reachable code path.
+  promptText String
+  checksum   String
+  status     VersionStatus @default(DRAFT)
+  createdAt  DateTime      @default(now())
+
+  diagnostics Diagnostic[]
+  reports     ClientReport[]
+}
+
+model ReportTemplateVersion {
+  id        String        @id @default(cuid())
+  code      String        @unique
+  label     String
+  status    VersionStatus @default(DRAFT)
+  /// Ordered report section keys.
+  sections  Json
+  createdAt DateTime      @default(now())
+
+  diagnostics Diagnostic[]
+  reports     ClientReport[]
+}
+
+model DiagnosticZoneDefinition {
+  id                 String           @id @default(cuid())
+  frameworkVersionId String
+  frameworkVersion   FrameworkVersion @relation(fields: [frameworkVersionId], references: [id], onDelete: Restrict)
+  key                String
+  name               String
+  position           Int
+  description        String
+
+  scores ZoneScore[]
+
+  @@unique([frameworkVersionId, key])
+  @@unique([frameworkVersionId, position])
+}
+
+model DiagnosticSectionDefinition {
+  id                 String           @id @default(cuid())
+  frameworkVersionId String
+  frameworkVersion   FrameworkVersion @relation(fields: [frameworkVersionId], references: [id], onDelete: Restrict)
+  number             Int
+  key                String
+  name               String
+  description        String
+
+  results SectionResult[]
+
+  @@unique([frameworkVersionId, number])
+  @@unique([frameworkVersionId, key])
+}
+
+// ──────────────────────────── Diagnostic ────────────────────────────
+
+model Diagnostic {
+  id                      String                 @id @default(cuid())
+  clientId                String
+  client                  Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  opportunityId           String?
+  opportunity             Opportunity?           @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  /// When this diagnostic corrects a finalized one.
+  supersedesId            String?
+  supersedes              Diagnostic?            @relation("DiagnosticSupersedes", fields: [supersedesId], references: [id], onDelete: Restrict)
+  supersededBy            Diagnostic[]           @relation("DiagnosticSupersedes")
+  title                   String
+  qaStatus                QaStatus               @default(NOT_READY)
+
+  frameworkVersionId      String
+  frameworkVersion        FrameworkVersion       @relation(fields: [frameworkVersionId], references: [id], onDelete: Restrict)
+  scoringVersionId        String
+  scoringVersion          ScoringVersion         @relation(fields: [scoringVersionId], references: [id], onDelete: Restrict)
+  promptVersionId         String?
+  promptVersion           PromptVersion?         @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  reportTemplateVersionId String?
+  reportTemplateVersion   ReportTemplateVersion? @relation(fields: [reportTemplateVersionId], references: [id], onDelete: Restrict)
+
+  // Intake
+  intakeObjective         String?
+  intakeWebsiteUrl        String?
+  intakeCurrentSystems    String?
+  intakeDemandSources     String?
+  intakeCompletedAt       DateTime?
+
+  // Narrative (report source of truth)
+  executiveDiagnosis               String?
+  revenueSpineStrength             String?
+  biggestConstraint                String?
+  recommendedInterventionDirection String?
+  implementationReadiness          String?
+  measurementPlan                  String?
+  nextDecision                     String?
+  finalRecommendation              String?
+  /// Internal only. Never projected to CLIENT users or reports.
+  internalNotes                    String?
+
+  createdById   String
+  createdBy     User      @relation("DiagnosticCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  finalizedAt   DateTime?
+  finalizedById String?
+  finalizedBy   User?     @relation("DiagnosticFinalizedBy", fields: [finalizedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  zoneScores     ZoneScore[]
+  sectionResults SectionResult[]
+  findings       Finding[]
+  evidence       EvidenceItem[]
+  leakScenarios  RevenueLeakScenario[]
+  priorityFixes  PriorityFix[]
+  qaRuns         QaRun[]
+  reports        ClientReport[]
+
+  @@index([clientId])
+  @@index([qaStatus])
+}
+
+model EvidenceItem {
+  id                String        @id @default(cuid())
+  clientId          String
+  client            Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  diagnosticId      String?
+  diagnostic        Diagnostic?   @relation(fields: [diagnosticId], references: [id], onDelete: Restrict)
+  type              EvidenceType
+  source            String
+  sourceUrl         String?
+  capturedText      String?
+  fileRef           String?
+  evidenceState     EvidenceState @default(NOT_VERIFIED)
+  /// Internal only.
+  operatorNotes     String?
+  capturedAt        DateTime      @default(now())
+  capturedById      String
+  capturedBy        User          @relation("EvidenceCapturedBy", fields: [capturedById], references: [id], onDelete: Restrict)
+  stateChangedAt    DateTime?
+  stateChangeReason String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  zoneScores     ZoneScoreEvidence[]
+  sectionResults SectionResultEvidence[]
+  findings       FindingEvidence[]
+  priorityFixes  PriorityFixEvidence[]
+  claims         ClaimEvidence[]
+
+  @@index([clientId])
+  @@index([diagnosticId])
+  @@index([evidenceState])
+}
+
+model ZoneScore {
+  id                           String                   @id @default(cuid())
+  diagnosticId                 String
+  diagnostic                   Diagnostic               @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  zoneDefinitionId             String
+  zoneDefinition               DiagnosticZoneDefinition @relation(fields: [zoneDefinitionId], references: [id], onDelete: Restrict)
+  /// 1–10; null = not yet scored. DB CHECK constraint enforces range.
+  score                        Int?
+  diagnosis                    String?
+  primaryWeakness              String?
+  recommendedInterventionClass String?
+  confidence                   ConfidenceLevel          @default(LOW)
+  justification                String?
+  scoringVersionId             String
+  scoringVersion               ScoringVersion           @relation(fields: [scoringVersionId], references: [id], onDelete: Restrict)
+  updatedAt                    DateTime                 @updatedAt
+
+  evidence ZoneScoreEvidence[]
+
+  @@unique([diagnosticId, zoneDefinitionId])
+}
+
+model ZoneScoreEvidence {
+  zoneScoreId    String
+  zoneScore      ZoneScore    @relation(fields: [zoneScoreId], references: [id], onDelete: Cascade)
+  evidenceItemId String
+  evidenceItem   EvidenceItem @relation(fields: [evidenceItemId], references: [id], onDelete: Restrict)
+
+  @@id([zoneScoreId, evidenceItemId])
+}
+
+model SectionResult {
+  id                  String                      @id @default(cuid())
+  diagnosticId        String
+  diagnostic          Diagnostic                  @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  sectionDefinitionId String
+  sectionDefinition   DiagnosticSectionDefinition @relation(fields: [sectionDefinitionId], references: [id], onDelete: Restrict)
+  status              SectionStatus               @default(NOT_STARTED)
+  findingsSummary     String?
+  updatedAt           DateTime                    @updatedAt
+
+  evidence SectionResultEvidence[]
+  findings Finding[]
+
+  @@unique([diagnosticId, sectionDefinitionId])
+}
+
+model SectionResultEvidence {
+  sectionResultId String
+  sectionResult   SectionResult @relation(fields: [sectionResultId], references: [id], onDelete: Cascade)
+  evidenceItemId  String
+  evidenceItem    EvidenceItem  @relation(fields: [evidenceItemId], references: [id], onDelete: Restrict)
+
+  @@id([sectionResultId, evidenceItemId])
+}
+
+/// An atomic diagnostic claim. QA verifies material findings are evidence-mapped.
+model Finding {
+  id              String         @id @default(cuid())
+  diagnosticId    String
+  diagnostic      Diagnostic     @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  sectionResultId String?
+  sectionResult   SectionResult? @relation(fields: [sectionResultId], references: [id], onDelete: SetNull)
+  statement       String
+  isMaterial      Boolean        @default(true)
+  evidenceState   EvidenceState  @default(NOT_VERIFIED)
+  clientFacing    Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  evidence FindingEvidence[]
+
+  @@index([diagnosticId])
+}
+
+model FindingEvidence {
+  findingId      String
+  finding        Finding      @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  evidenceItemId String
+  evidenceItem   EvidenceItem @relation(fields: [evidenceItemId], references: [id], onDelete: Restrict)
+
+  @@id([findingId, evidenceItemId])
+}
+
+model RevenueLeakScenario {
+  id                       String        @id @default(cuid())
+  diagnosticId             String
+  diagnostic               Diagnostic    @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  label                    String
+  averageClientValue       Decimal?      @db.Decimal(12, 2)
+  averageClientValueState  EvidenceState @default(NOT_VERIFIED)
+  missedBookingsPerWeek    Decimal?      @db.Decimal(8, 2)
+  missedBookingsState      EvidenceState @default(NOT_VERIFIED)
+  weeksPerMonth            Decimal       @default(4) @db.Decimal(4, 2)
+  weeksPerMonthState       EvidenceState @default(ASSUMPTION)
+  /// Derived by domain/leak. Null when any input is missing or NOT_VERIFIED.
+  estimatedMonthlyExposure Decimal?      @db.Decimal(12, 2)
+  /// Weakest evidence state among inputs.
+  resultState              EvidenceState @default(NOT_VERIFIED)
+  notes                    String?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  @@index([diagnosticId])
+}
+
+model PriorityFix {
+  id                String     @id @default(cuid())
+  diagnosticId      String
+  diagnostic        Diagnostic @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  rank              Int
+  problem           String
+  fix               String
+  interventionClass String?
+  zoneKey           String?
+  effort            String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  evidence PriorityFixEvidence[]
+
+  @@unique([diagnosticId, rank])
+}
+
+model PriorityFixEvidence {
+  priorityFixId  String
+  priorityFix    PriorityFix  @relation(fields: [priorityFixId], references: [id], onDelete: Cascade)
+  evidenceItemId String
+  evidenceItem   EvidenceItem @relation(fields: [evidenceItemId], references: [id], onDelete: Restrict)
+
+  @@id([priorityFixId, evidenceItemId])
+}
+
+model QaRun {
+  id           String     @id @default(cuid())
+  diagnosticId String
+  diagnostic   Diagnostic @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  runById      String
+  runBy        User       @relation(fields: [runById], references: [id], onDelete: Restrict)
+  /// QA_PASSED or QA_FAILED
+  resultStatus QaStatus
+  checks       Json
+  attestations Json
+  notes        String?
+  createdAt    DateTime   @default(now())
+
+  @@index([diagnosticId])
+}
+
+model ClientReport {
+  id                      String                @id @default(cuid())
+  diagnosticId            String
+  diagnostic              Diagnostic            @relation(fields: [diagnosticId], references: [id], onDelete: Restrict)
+  clientId                String
+  client                  Client                @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  status                  ReportStatus          @default(DRAFT)
+  /// Frozen, client-safe projection of the diagnostic at publish time. Never mutated after publish.
+  snapshot                Json?
+  frameworkVersionId      String
+  frameworkVersion        FrameworkVersion      @relation(fields: [frameworkVersionId], references: [id], onDelete: Restrict)
+  scoringVersionId        String
+  scoringVersion          ScoringVersion        @relation(fields: [scoringVersionId], references: [id], onDelete: Restrict)
+  promptVersionId         String?
+  promptVersion           PromptVersion?        @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  reportTemplateVersionId String
+  reportTemplateVersion   ReportTemplateVersion @relation(fields: [reportTemplateVersionId], references: [id], onDelete: Restrict)
+  publishedAt             DateTime?
+  publishedById           String?
+  publishedBy             User?                 @relation("ReportPublishedBy", fields: [publishedById], references: [id], onDelete: Restrict)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  @@index([clientId, status])
+  @@index([diagnosticId])
+}
+
+// ──────────────────────────── Validation ────────────────────────────
+
+model Hypothesis {
+  id                   String           @id @default(cuid())
+  offerId              String?
+  offerRef             Offer?           @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  icp                  String
+  pain                 String
+  proposedIntervention String
+  offer                String
+  priceScope           String
+  channel              String
+  expectedBehavior     String
+  startDate            DateTime?
+  endDate              DateTime?
+  sampleTarget         Int?
+  successThreshold     String?
+  killCondition        String?
+  status               HypothesisStatus @default(DRAFT)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  tests     ValidationTest[]
+  decisions ValidationDecision[]
+}
+
+model ValidationTest {
+  id                     String     @id @default(cuid())
+  hypothesisId           String
+  hypothesis             Hypothesis @relation(fields: [hypothesisId], references: [id], onDelete: Cascade)
+  startDate              DateTime
+  endDate                DateTime
+  sampleSizeTarget       Int
+  outreachCount          Int        @default(0)
+  conversations          Int        @default(0)
+  qualifiedConversations Int        @default(0)
+  commercialAsks         Int        @default(0)
+  advancedToNextStep     Int        @default(0)
+  paidEngagements        Int        @default(0)
+  notes                  String?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  evidence ValidationEvidence[]
+}
+
+model ValidationEvidence {
+  id            String         @id @default(cuid())
+  testId        String
+  test          ValidationTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  /// Exact buyer language — do not paraphrase.
+  buyerLanguage String
+  outcome       String
+  objections    String?
+  paymentEvent  Boolean        @default(false)
+  paymentAmount Decimal?       @db.Decimal(12, 2)
+  source        String
+  evidenceState EvidenceState  @default(NOT_VERIFIED)
+  capturedAt    DateTime       @default(now())
+}
+
+model ValidationDecision {
+  id           String                  @id @default(cuid())
+  hypothesisId String
+  hypothesis   Hypothesis              @relation(fields: [hypothesisId], references: [id], onDelete: Cascade)
+  decision     ValidationDecisionState
+  rationale    String
+  decidedById  String
+  decidedBy    User                    @relation(fields: [decidedById], references: [id], onDelete: Restrict)
+  decidedAt    DateTime                @default(now())
+}
+
+model OfferConfidence {
+  id         String              @id @default(cuid())
+  offerId    String
+  offer      Offer               @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  dimension  ConfidenceDimension
+  level      ConfidenceLevel     @default(LOW)
+  basis      String?
+  assessedAt DateTime            @default(now())
+
+  @@unique([offerId, dimension])
+}
+
+// ─────────────────────── Claims and audit ───────────────────────
+
+model MarketingClaim {
+  id                String      @id @default(cuid())
+  statement         String
+  claimType         ClaimType
+  isQuantitative    Boolean     @default(false)
+  cohortDefinition  String?
+  timeWindow        String?
+  calculationMethod String?
+  ownerId           String
+  owner             User        @relation("ClaimOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  approvedById      String?
+  approvedBy        User?       @relation("ClaimApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  approvedAt        DateTime?
+  reviewDate        DateTime?
+  status            ClaimStatus @default(DRAFT)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  evidence ClaimEvidence[]
+
+  @@index([status])
+}
+
+model ClaimEvidence {
+  claimId        String
+  claim          MarketingClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  evidenceItemId String
+  evidenceItem   EvidenceItem   @relation(fields: [evidenceItemId], references: [id], onDelete: Restrict)
+
+  @@id([claimId, evidenceItemId])
+}
+
+/// Append-only. The application never updates or deletes rows.
+model AuditLog {
+  id         String      @id @default(cuid())
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  entityType String
+  entityId   String
+  action     AuditAction
+  before     Json?
+  after      Json?
+  reason     String?
+  createdAt  DateTime    @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}

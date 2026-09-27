@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/*
+ * RIBM operator design tokens.
+ * Black/charcoal surfaces · red = critical issue / primary commercial action
+ * gold = methodology emphasis / selected · green = verified / positive.
+ * All text/background pairs below meet WCAG AA (≥4.5:1) at body size.
+ */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink-950: #0c0d0e;   /* app background */
+  --color-ink-900: #141618;   /* primary surface */
+  --color-ink-850: #1a1d20;   /* raised surface / table header */
+  --color-ink-700: #2b3035;   /* hairline borders */
+  --color-ink-500: #5b636b;   /* disabled */
+  --color-bone-100: #efece5;  /* primary text — 15.9:1 on ink-900 */
+  --color-bone-300: #b7b3a9;  /* secondary text — 8.6:1 on ink-900 */
+  --color-bone-400: #9a968d;  /* tertiary text — 6.1:1 on ink-900 */
+
+  --color-signal-red: #e5484d;     /* text/icons on dark — 4.9:1 on ink-900 */
+  --color-signal-red-fill: #b4232a;/* button fill — white text 6.3:1 */
+  --color-signal-gold: #d4ac3a;    /* 8.9:1 on ink-900 */
+  --color-signal-green: #46b37e;   /* 6.8:1 on ink-900 */
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-ink-950);
+  color: var(--color-bone-100);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-signal-gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
