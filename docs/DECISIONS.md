@@ -99,7 +99,7 @@ The authenticated layout, every page, and every server action verify the session
 
 - Every document carries this versioning rule. There was no adoption record.
 - **Resolution.** On 2026-09-27 the founder formally adopted this version (`RS-FW-2.1`, the validated source set 00–04).
-- **Database record — OPEN.** `FrameworkVersion.adoptedAt` / `adoptedById` are still null, so Settings shows "Not recorded." How the adoption gets written to the database (and attributed to whom) is left for the founder to direct; it is not automated.
+- **Database record.** The founder chose option (a): an Admin-only **Record adoption** form in Settings. The signed-in Admin writes an adoption statement, and the record is attributed to that account and audit-logged (`FRAMEWORK_CHANGE`, statement as reason). It can be recorded only once, and never automatically. It remains null until the founder submits it.
 
 ### C-03 · Primary ICP: "established service organizations" vs "high-value local/professional service" — ACCEPTED (01 + 04)
 
@@ -220,3 +220,17 @@ This check is in 04 §21, but prescriptions are MVP 2. MVP 1 QA implements BD §
 
 - 01 §13 and 04 §28: "Reject or defer prospects with no meaningful demand source when the proposed intervention is conversion infrastructure."
 - **Decision.** `Opportunity.demandSourceState` = NONE / WEAK / MEANINGFUL / UNKNOWN. Advancing to QUALIFIED requires MEANINGFUL, or a recorded override reason, which is audit-logged. Enforced in the Phase 2 domain service.
+
+### C-21 · Opportunity stage rules beyond the qualification gate — ACCEPTED (Phase 2)
+
+Sources: 04 §28 ("Require authority/decision process before generating a commercial proposal"), 01 §6 and 04 §11 ("deferred with date"), and 01 §9 ("next decision on every live deal").
+
+- **PROPOSAL** requires `authorityState = CONFIRMED`. There is no override: the source says *require*.
+- **Qualification gate.** Entering QUALIFIED or any later stage from an unqualified stage runs the C-20 gate. Skipping stages does not bypass it.
+- **Next action.** Every live stage (Target → Proposal, and Deferred) requires a next action and a date. Deferring without a date is blocked.
+- **DISQUALIFIED** requires a reason, which is stored on the opportunity.
+- **WON** is terminal in MVP 1. Post-sale work belongs to Deal/Install (MVP 2–3), per C-06.
+- **Reopening.** LOST and DISQUALIFIED reopen only to TARGET, with a reason. Qualification resets to UNASSESSED.
+- **Overrides.** Qualification overrides are stored in the audit log with the prefix `QUALIFICATION OVERRIDE:`, so they can be counted later.
+- **Contacts.** An opportunity's primary contact must belong to the same client. This is enforced in the service.
+

@@ -93,6 +93,23 @@ Delivered:
 
 ## PHASE 2: Clients, contacts, and opportunities
 
+**Status: done in session 2.**
+
+Delivered:
+
+- Pages:
+  - Client list, create, profile edit, and contacts with add/edit.
+  - Opportunity list with stage filter, overdue banner, and next-action sort.
+  - Opportunity create (client first, PRIMARY offer preselected).
+  - Qualification editing, a stage-change panel showing gate gaps, and a per-opportunity history.
+- Stage rules in `src/domain/opportunities/stage-rules.ts` (C-20, C-21).
+- Admin-only framework adoption form (C-02).
+- Tests: 159 unit tests and 19 database tests pass.
+- Browser-checked end to end:
+  - Validation errors show on the right fields.
+  - The qualification gate blocks, and fixing the signals clears it.
+  - SALES_ADVISOR can advance stages but cannot create or edit clients or contacts.
+
 - **Objectives:** operators can record accounts and move opportunities through the MVP stages with qualification discipline.
 - **Files and modules:**
   - `src/server/clients/*`, `src/server/opportunities/*` (services and server actions, Zod input schemas)

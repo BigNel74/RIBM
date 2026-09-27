@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
@@ -84,5 +85,26 @@ export function ModulePending({ phase, purpose, next }: { phase: string; purpose
         ))}
       </ul>
     </Panel>
+  );
+}
+
+export function LinkButton({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="inline-block rounded-md bg-signal-red-fill px-4 py-2 text-sm font-medium text-white hover:bg-[#9d1d23]">
+      {children}
+    </Link>
+  );
+}
+
+export function DefinitionList({ items }: { items: Array<[string, ReactNode]> }) {
+  return (
+    <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+      {items.map(([k, v]) => (
+        <div key={k}>
+          <dt className="text-xs uppercase tracking-wide text-bone-400">{k}</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap">{v || <span className="text-bone-400">—</span>}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

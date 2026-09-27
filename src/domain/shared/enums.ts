@@ -26,6 +26,24 @@ export const OPPORTUNITY_STAGES = [
 ] as const;
 export type OpportunityStage = (typeof OPPORTUNITY_STAGES)[number];
 
+export const QUALIFICATION_STATES = ["UNASSESSED", "IN_PROGRESS", "QUALIFIED", "DISQUALIFIED"] as const;
+export type QualificationState = (typeof QUALIFICATION_STATES)[number];
+
+export const DEMAND_SOURCE_STATES = ["UNKNOWN", "NONE", "WEAK", "MEANINGFUL"] as const;
+export type DemandSourceState = (typeof DEMAND_SOURCE_STATES)[number];
+
+export const AUTHORITY_STATES = ["UNKNOWN", "PARTIAL", "CONFIRMED"] as const;
+export type AuthorityState = (typeof AUTHORITY_STATES)[number];
+
+export const URGENCY_LEVELS = ["UNKNOWN", "LOW", "MEDIUM", "HIGH"] as const;
+export type UrgencyLevel = (typeof URGENCY_LEVELS)[number];
+
+export const AUTHORITY_LEVELS = ["UNKNOWN", "DECISION_MAKER", "INFLUENCER", "GATEKEEPER"] as const;
+export type AuthorityLevel = (typeof AUTHORITY_LEVELS)[number];
+
+export const DECISION_ROLES = ["UNKNOWN", "ECONOMIC_BUYER", "CHAMPION", "TECHNICAL_EVALUATOR", "END_USER"] as const;
+export type DecisionRole = (typeof DECISION_ROLES)[number];
+
 export const OFFER_STATUSES = ["PRIMARY", "TEST", "POST_SALE", "DEFERRED", "RETIRED"] as const;
 export type OfferStatus = (typeof OFFER_STATUSES)[number];
 

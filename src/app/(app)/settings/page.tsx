@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { requirePagePermission } from "@/server/auth/guards";
 import { db } from "@/server/db";
+import { ActionForm, SubmitButton, TextArea } from "@/ui/form";
 import { DataTable, PageHeader, Panel, StatusChip } from "@/ui/primitives";
+import { recordAdoptionAction } from "./actions";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -19,7 +21,15 @@ export default async function SettingsPage() {
     }),
     db.frameworkVersion.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, code: true, label: true, status: true, adoptedAt: true, _count: { select: { zones: true, sections: true } } },
+      select: {
+        id: true,
+        code: true,
+        label: true,
+        status: true,
+        adoptedAt: true,
+        adoptedBy: { select: { name: true } },
+        _count: { select: { zones: true, sections: true } },
+      },
     }),
     db.scoringVersion.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, code: true, label: true, status: true } }),
     db.reportTemplateVersion.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, code: true, label: true, status: true } }),
@@ -54,9 +64,32 @@ export default async function SettingsPage() {
             f._count.zones,
             f._count.sections,
             <StatusChip key="s" tone={f.status === "ACTIVE" ? "verified" : "neutral"}>{f.status}</StatusChip>,
-            f.adoptedAt ? fmt(f.adoptedAt) : <StatusChip key="a" tone="gold">Not recorded</StatusChip>,
+            f.adoptedAt ? (
+              <span key="a" className="text-sm">
+                <StatusChip tone="verified">Adopted</StatusChip> <span className="font-mono text-xs">{fmt(f.adoptedAt)}</span>{" "}
+                <span className="text-bone-400">by {f.adoptedBy?.name}</span>
+              </span>
+            ) : (
+              <StatusChip key="a" tone="gold">Not recorded</StatusChip>
+            ),
           ])}
         />
+        {frameworks
+          .filter((f) => f.status === "ACTIVE" && !f.adoptedAt)
+          .map((f) => (
+            <div key={f.id} className="mt-5 border-t border-ink-700 pt-4">
+              <h3 className="text-sm font-semibold">Record founder adoption of {f.code}</h3>
+              <p className="mt-1 max-w-2xl text-sm text-bone-400">
+                Records that you formally adopt this framework version (DECISIONS C-02). The entry is attributed to your account and your statement is kept in the audit log. It can be recorded once.
+              </p>
+              <div className="mt-3 max-w-2xl">
+                <ActionForm action={recordAdoptionAction.bind(null, f.id)} successMessage="Adoption recorded.">
+                  <TextArea name="statement" label="Adoption statement" required rows={2} hint={`For example: "I adopt ${f.code} as the governing Revenue Spine framework."`} />
+                  <SubmitButton>Record adoption</SubmitButton>
+                </ActionForm>
+              </div>
+            </div>
+          ))}
       </Panel>
 
       <div className="grid gap-6 lg:grid-cols-2">
