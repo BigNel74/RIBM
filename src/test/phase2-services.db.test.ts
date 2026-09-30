@@ -37,6 +37,8 @@ afterAll(async () => {
   await db.client.deleteMany({ where: { id: { in: clientIds } } });
   // Users and the test framework have audit rows (append-only), so they are deactivated/left, not deleted.
   await db.user.updateMany({ where: { email: { startsWith: tag } }, data: { active: false } });
+  // Never leave a second ACTIVE framework behind — diagnostics require exactly one.
+  await db.frameworkVersion.updateMany({ where: { code: { startsWith: "p2test_" } }, data: { status: "RETIRED" } });
   await db.$disconnect();
 });
 

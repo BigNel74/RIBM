@@ -137,6 +137,20 @@ Delivered:
 
 ## PHASE 3: Evidence, diagnostics, and scoring
 
+**Status: done in session 3.**
+
+Delivered:
+
+- **Diagnostic workspace** with tabs: intake, evidence, five zones, 15 sections, findings, exposure, priority plan, summary.
+- **Evidence capture.** Screenshots and PDFs are stored privately (ADR-015). State changes are explicit, and referenced evidence cannot be deleted.
+- **Scoring.** Zone scores are validated against the pinned scoring version. Evidence is shown beside each score, and scores are re-checked on every view.
+- **Finding certainty rule** (C-22).
+- **Exposure scenarios** with per-input evidence states.
+- **Priority plan** with a dense ranking.
+- **Enforcement.** QA resets on any edit, and finalized diagnostics are immutable.
+- **Tests:** 37 database tests, including the BD §24 checks for finalized-version retention, evidence relationships, and audit-on-score-change.
+- **No generation buttons** (ADR-013).
+
 - **Objectives:** the core laboratory. Capture evidence, build a diagnostic pinned to versions, score the five zones, complete the 15 sections, record findings, model leak scenarios, and rank priority fixes.
 - **Files and modules:**
   - `src/server/evidence/*`, including file upload to private storage with a content-type allowlist and a size cap

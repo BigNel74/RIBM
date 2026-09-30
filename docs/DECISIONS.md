@@ -86,6 +86,29 @@ No floats for money. Domain functions receive plain numbers, validated by Zod. T
 
 The authenticated layout, every page, and every server action verify the session themselves against the database. A proxy-only cookie check is optimistic and not a security boundary. It can be added later as a redirect optimization.
 
+### ADR-013 · No generation buttons until a real adapter exists — ACCEPTED (Phase 3)
+
+- `src/server/ai/port.ts` defines the `DiagnosticGenerator` port. `getDiagnosticGenerator()` returns `null` in MVP 1.
+- The UI does **not** show "Analyze Evidence" or similar controls while no generator exists. A button that does nothing misleads the operator.
+- When an adapter lands, every draft it produces arrives `NOT_VERIFIED` in editable structured fields, and the diagnostic pins a `PromptVersion`.
+
+### ADR-014 · Exactly one ACTIVE version of each methodology kind — ACCEPTED (Phase 3)
+
+- Opening a diagnostic fails if there are zero or several ACTIVE framework, scoring, or report-template versions. It never guesses by "newest."
+- Found in testing: a stray ACTIVE test framework was silently picked up by a new diagnostic.
+
+### ADR-015 · Evidence files: private local storage, content-sniffed, authenticated route — ACCEPTED (Phase 3)
+
+- **Storage.** Files are stored under `STORAGE_DIR` (default `./storage`, gitignored), never under `public/`. Storage keys are generated server-side, and every resolved path is checked to stay inside the storage root.
+- **Allowed types.** PNG, JPEG, WebP, and PDF only. The type is detected from the file's first bytes, never from its name or declared MIME type. SVG and HTML are rejected. The size cap is 10 MB, enforced in the service and by a database CHECK.
+- **Serving.** Files are served only by `GET /api/evidence/[id]/file` to internal roles. It returns 404 for both "missing" and "forbidden." Responses carry `no-store`, `nosniff`, and a restrictive CSP. PDFs download; images render inline.
+- **Hosting.** Local disk assumes a single server with a persistent volume. Before deployment (R9), decide between a persistent volume and object storage with signed URLs. The storage module is the only file that changes.
+
+### ADR-016 · Forms submit via `onSubmit` + `startTransition`, not the `action` prop — ACCEPTED (Phase 3)
+
+- React 19 resets a form after its `action` finishes, including after a validation error. That discarded operator input on every mistake.
+- Found in testing (Phase 3). Fixed once in `ActionForm` and in the login form. The login form keeps the email and clears only the password.
+
 ---
 
 ## Part B — Source-document conflicts
@@ -233,4 +256,19 @@ Sources: 04 §28 ("Require authority/decision process before generating a commer
 - **Reopening.** LOST and DISQUALIFIED reopen only to TARGET, with a reason. Qualification resets to UNASSESSED.
 - **Overrides.** Qualification overrides are stored in the audit log with the prefix `QUALIFICATION OVERRIDE:`, so they can be counted later.
 - **Contacts.** An opportunity's primary contact must belong to the same client. This is enforced in the service.
+
+### C-22 · Diagnostic evidence rules beyond the source text — ACCEPTED (Phase 3)
+
+These operationalize "Evidence before certainty" (03 §2 Law 2, 04 §7) and "Every score … traceable to evidence" (04 §8). Each is enforced in a pure domain function or a service, and tested.
+
+- **Initial evidence state.** Evidence starts NOT_VERIFIED. Capturing it in any other state requires a written basis. VERIFIED also requires a source URL or an attached file (E1 applied at capture).
+- **Finding certainty.** A finding cannot claim more certainty than its linked evidence:
+  - VERIFIED needs at least one linked VERIFIED item.
+  - CLIENT_PROVIDED needs a linked CLIENT_PROVIDED or VERIFIED item.
+  - ASSUMPTION and NOT_VERIFIED findings are always allowed, because they are visibly labeled (`domain/evidence/finding-state.ts`).
+- **Score changes.** Changing an existing zone score requires a reason, stored as the `SCORE_CHANGE` audit reason. A first score is logged with an automatic reason.
+- **Live re-checks.** Zone scores are re-checked against their evidence on every view. A later evidence downgrade shows the score in red with the rule it now breaks. QA (Phase 4) blocks it.
+- **Sections.** A section can be marked COMPLETE only with a written summary.
+- **Evidence scope.** Evidence can only be linked within its own diagnostic.
+- **Reopening QA.** Any content edit to a diagnostic after QA returns it to NOT_READY, and that change is audit-logged. Edits to a FINALIZED diagnostic are rejected everywhere (L3).
 

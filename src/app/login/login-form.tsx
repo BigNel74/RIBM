@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState, type FormEvent } from "react";
 import { login, type LoginState } from "./actions";
 
 const initial: LoginState = { error: null };
@@ -8,8 +8,17 @@ const initial: LoginState = { error: null };
 export function LoginForm() {
   const [state, action, pending] = useActionState(login, initial);
 
+  // Keep the email after a failed attempt (React 19 would reset the whole form); clear only the password.
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    (form.elements.namedItem("password") as HTMLInputElement).value = "";
+    startTransition(() => action(formData));
+  }
+
   return (
-    <form action={action} className="space-y-5" noValidate>
+    <form onSubmit={onSubmit} className="space-y-5" noValidate>
       <div className="space-y-1.5">
         <label htmlFor="email" className="block text-sm font-medium text-bone-300">
           Email

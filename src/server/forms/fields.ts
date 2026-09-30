@@ -35,13 +35,39 @@ export const optionalDate = z.preprocess(
     .nullable(),
 );
 
-export function formToObject(formData: FormData): Record<string, string> {
-  const out: Record<string, string> = {};
+/**
+ * Plain object from FormData. Keys in `arrayKeys` always become string arrays
+ * (checkbox groups); other repeated keys keep the last value.
+ */
+export function formToObject(formData: FormData, arrayKeys: readonly string[] = []): Record<string, string | string[]> {
+  const out: Record<string, string | string[]> = {};
+  for (const k of arrayKeys) out[k] = [];
   for (const [k, v] of formData.entries()) {
-    if (typeof v === "string" && !k.startsWith("$ACTION")) out[k] = v;
+    if (typeof v !== "string" || k.startsWith("$ACTION")) continue;
+    if (arrayKeys.includes(k)) (out[k] as string[]).push(v);
+    else out[k] = v;
   }
   return out;
 }
+
+/** Checkbox: present ("on"/"true") → true, absent → false. */
+export const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean());
+
+/** Optional integer within a range; blank → null. */
+export const optionalInt = (min: number, max: number) =>
+  z.preprocess(
+    (v) => (typeof v === "string" ? (v.trim() === "" ? null : Number(v)) : v ?? null),
+    z.number({ error: "Enter a whole number." }).int("Enter a whole number.").min(min).max(max).nullable(),
+  );
+
+/** Optional non-negative decimal (money, rates); blank → null. Commas and $ are ignored. */
+export const optionalDecimal = (max: number) =>
+  z.preprocess(
+    (v) => (typeof v === "string" ? (v.trim() === "" ? null : Number(v.replace(/[$,\s]/g, ""))) : v ?? null),
+    z.number({ error: "Enter a number." }).finite("Enter a number.").min(0, "Must be zero or more.").max(max).nullable(),
+  );
+
+export const idList = z.array(z.string().min(1).max(64)).max(200).default([]);
 
 export function toDateInput(d: Date | null | undefined): string {
   return d ? d.toISOString().slice(0, 10) : "";

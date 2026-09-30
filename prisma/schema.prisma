@@ -524,7 +524,11 @@ model EvidenceItem {
   source            String
   sourceUrl         String?
   capturedText      String?
+  /// Storage key under STORAGE_DIR (never a public path). Served only through the authenticated file route.
   fileRef           String?
+  fileName          String?
+  fileMimeType      String?
+  fileSize          Int?
   evidenceState     EvidenceState @default(NOT_VERIFIED)
   /// Internal only.
   operatorNotes     String?
