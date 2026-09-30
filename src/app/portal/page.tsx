@@ -47,8 +47,10 @@ export default async function PortalPage() {
         ) : (
           <ul className="mt-3 divide-y divide-ink-700">
             {reports.map((r) => (
-              <li key={r.id} className="flex justify-between py-2.5 text-sm">
-                <span>{r.diagnostic.title}</span>
+              <li key={r.id} className="flex justify-between gap-3 py-2.5 text-sm">
+                <a href={`/r/${r.id}`} className="underline underline-offset-4">
+                  {r.diagnostic.title}
+                </a>
                 <span className="font-mono text-xs text-bone-400">{r.publishedAt?.toISOString().slice(0, 10)}</span>
               </li>
             ))}

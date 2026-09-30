@@ -4,6 +4,8 @@ import { hasPermission } from "@/server/auth/permissions";
 import { requirePagePermission } from "@/server/auth/guards";
 import { getDiagnostic } from "@/server/diagnostics/service";
 import { loadOr404 } from "@/server/pages";
+import { listQaRuns } from "@/server/qa/service";
+import { listReports } from "@/server/reports/service";
 import { PageHeader, StatusChip } from "@/ui/primitives";
 import { QaChip } from "../qa-chip";
 import { EvidenceTab } from "./tabs/evidence";
@@ -11,13 +13,14 @@ import { ExposureTab } from "./tabs/exposure";
 import { FindingsTab } from "./tabs/findings";
 import { IntakeTab } from "./tabs/intake";
 import { PlanTab } from "./tabs/plan";
+import { QaTab } from "./tabs/qa";
 import { SectionsTab } from "./tabs/sections";
 import { SummaryTab } from "./tabs/summary";
 import { ZonesTab } from "./tabs/zones";
 
 export const metadata: Metadata = { title: "Diagnostic" };
 
-const TABS = ["intake", "evidence", "zones", "sections", "findings", "exposure", "plan", "summary"] as const;
+const TABS = ["intake", "evidence", "zones", "sections", "findings", "exposure", "plan", "summary", "qa"] as const;
 type Tab = (typeof TABS)[number];
 
 export default async function DiagnosticPage(props: PageProps<"/diagnostics/[id]">) {
@@ -41,6 +44,7 @@ export default async function DiagnosticPage(props: PageProps<"/diagnostics/[id]
     exposure: `Exposure · ${d.leakScenarios.length}`,
     plan: `Priority plan · ${d.priorityFixes.length}`,
     summary: "Summary",
+    qa: "QA & report",
   };
 
   return (
@@ -81,6 +85,18 @@ export default async function DiagnosticPage(props: PageProps<"/diagnostics/[id]
       {tab === "exposure" && <ExposureTab {...props2} />}
       {tab === "plan" && <PlanTab {...props2} />}
       {tab === "summary" && <SummaryTab {...props2} />}
+      {tab === "qa" && (
+        <QaTab
+          {...props2}
+          qaData={{
+            runs: await listQaRuns(user, d.id),
+            reports: await listReports(user, { diagnosticId: d.id }),
+            canRunQa: hasPermission(user.role, "qa:run"),
+            canFinalize: hasPermission(user.role, "diagnostics:finalize"),
+            canPublish: hasPermission(user.role, "reports:publish"),
+          }}
+        />
+      )}
     </>
   );
 }

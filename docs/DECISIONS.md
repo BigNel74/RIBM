@@ -109,6 +109,18 @@ The authenticated layout, every page, and every server action verify the session
 - React 19 resets a form after its `action` finishes, including after a validation error. That discarded operator input on every mistake.
 - Found in testing (Phase 3). Fixed once in `ActionForm` and in the login form. The login form keeps the email and clears only the password.
 
+
+### ADR-017 · Client reports render only from a versioned snapshot; PDF via browser print — ACCEPTED (Phase 4)
+
+- **Snapshot.** `domain/reports/snapshot.ts` is the single projection from the diagnostic to client-visible JSON. It carries `schemaVersion: 1`.
+  - Excluded by construction: internal and operator notes, non-client-facing findings, evidence that only internal items reference, files, prompts, and staff identities.
+  - Covered by unit tests plus a database test that searches the stored JSON for planted internal strings.
+- **Rendering.** The client page `/r/[id]` renders the snapshot only, never live data. It is mobile-first and light-themed. A print stylesheet makes the browser's "Save as PDF" the MVP 1 PDF export (BD §14). There is no server-side PDF service and no DOCX.
+- **Read path.** Report reads go through `getReportForViewer`:
+  - A CLIENT sees only their own client's PUBLISHED reports.
+  - Anything else returns "not found," so report ids cannot be probed.
+  - Internal roles also see withdrawn reports, with a banner.
+
 ---
 
 ## Part B — Source-document conflicts
@@ -271,4 +283,20 @@ These operationalize "Evidence before certainty" (03 §2 Law 2, 04 §7) and "Eve
 - **Sections.** A section can be marked COMPLETE only with a written summary.
 - **Evidence scope.** Evidence can only be linked within its own diagnostic.
 - **Reopening QA.** Any content edit to a diagnostic after QA returns it to NOT_READY, and that change is audit-logged. Edits to a FINALIZED diagnostic are rejected everywhere (L3).
+
+### C-23 · QA, publishing, and report content rules — ACCEPTED (Phase 4)
+
+- **Running QA.** "Run QA" moves the diagnostic from NOT_READY or QA_FAILED to READY_FOR_QA, evaluates it, and ends in QA_PASSED or QA_FAILED.
+  - Every run is stored as a `QaRun` with the full checklist and the operator's attestations.
+  - There is no manual pass or override (L2).
+  - Re-running after a pass is refused; any content edit reopens QA.
+- **Attestations.** Both are required:
+  - No fabricated metrics (BD §13).
+  - Aesthetics not over-rewarded (C-14).
+- **Exposure scenarios are recomputed at QA** from their stored inputs. A stored number that no longer matches its inputs fails "Revenue scenarios labeled."
+- **Publishing** requires QA_PASSED or FINALIZED. It stores a frozen snapshot with the framework, scoring, prompt, and template version ids.
+  - Publishing again for the same diagnostic withdraws the previous report, so a client never sees two versions.
+  - Withdrawing a report requires a reason.
+- **Finalizing** requires QA_PASSED and freezes the diagnostic. A finalized diagnostic can still be (re)published.
+- **No composite score.** The report shows the five zone scores only. No source defines an overall "Revenue Spine score," and an average would be an invented metric.
 

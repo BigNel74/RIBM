@@ -180,6 +180,16 @@ Delivered:
 
 ## PHASE 4: QA and reports
 
+**Status: done in session 4.**
+
+Delivered:
+
+- **QA & report tab.** Run QA with a checklist and attestations, see QA history, publish, withdraw, and finalize.
+- **Client report `/r/[id]`.** Built from a frozen snapshot (ADR-017), mobile-first, printable to PDF, with the evidence state shown on every claim.
+- **Reports list and client portal links.**
+- **Tests:** 7 more database tests for the QA gate, publish lock, snapshot immutability after edits, republish/withdraw, client isolation, and finalization.
+- **Browser check, end to end:** build a full diagnostic through the UI, fail QA without attestations, pass QA, publish, then open it as the client on a phone. The client sees 12 sections and no internal strings, the page has no horizontal scroll, and it exports a 4-page PDF.
+
 - **Objectives:** a QA gate and a client report generated from structured data.
 - **Files and modules:**
   - `src/server/qa/*`, using the Phase 1 domain `evaluateDiagnosticQa`

@@ -7,6 +7,8 @@ import { requireActionPermission } from "@/server/auth/guards";
 import type { Actor } from "@/server/auth/permissions";
 import * as diagnostics from "@/server/diagnostics/service";
 import * as evidence from "@/server/evidence/service";
+import * as qa from "@/server/qa/service";
+import * as reports from "@/server/reports/service";
 import { failure, success, type ActionState } from "@/server/forms/action-state";
 import { formToObject } from "@/server/forms/fields";
 
@@ -91,4 +93,24 @@ export async function changeEvidenceStateAction(id: string, evidenceId: string, 
 }
 export async function deleteEvidenceAction(id: string, evidenceId: string) {
   return run("evidence:write", id, (a) => evidence.deleteEvidence(a, evidenceId));
+}
+
+// ───────────── QA, finalization, publishing (Phase 4) ─────────────
+
+export async function runQaAction(id: string, _p: ActionState, fd: FormData) {
+  return run("qa:run", id, (a) => qa.runQa(a, id, formToObject(fd)));
+}
+export async function finalizeAction(id: string) {
+  return run("diagnostics:finalize", id, (a) => qa.finalizeDiagnostic(a, id));
+}
+export async function publishReportAction(id: string) {
+  const state = await run("reports:publish", id, (a) => reports.publishReport(a, id));
+  revalidatePath("/reports");
+  return state;
+}
+export async function withdrawReportAction(id: string, reportId: string, _p: ActionState, fd: FormData) {
+  const reason = fd.get("reason");
+  const state = await run("reports:publish", id, (a) => reports.withdrawReport(a, reportId, typeof reason === "string" ? reason : ""));
+  revalidatePath("/reports");
+  return state;
 }
