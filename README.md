@@ -14,6 +14,7 @@ The Revenue Spine methodology is the product. AI is supporting infrastructure.
 | `/docs/IMPLEMENTATION_PLAN.md` | Phases 0–7 with acceptance criteria |
 | `/docs/DOMAIN_MODEL.md` | Entities, enums, invariants, permission matrix |
 | `/docs/DECISIONS.md` | Architecture decisions and source-document conflicts |
+| `/docs/DEPLOY.md` | Hosting requirements, Render setup, first-login checklist |
 | `/docs/*.docx`, `/docs/source-text/` | Validated source documents (source of truth) |
 
 ## Local setup

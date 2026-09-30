@@ -70,7 +70,7 @@ Twenty conflicts are recorded with resolutions in `DECISIONS.md` Part B. The one
 | R6 | AI output presented as fact. | High | No model integration in Phase 0–1. Adapter boundary (ADR-010). Generated output lands as editable drafts in `NOT_VERIFIED` state. |
 | R7 | Prisma/Next major-version churn. | Low | Pinned versions. Upgrades are explicit tasks. |
 | R8 | Single-tenant assumption leaks into the design, making licensing harder later. | Low (deferred by doctrine) | Every client-scoped row carries `clientId`. Org-level tenancy is not built (01 §13 sequential-expansion rule). |
-| R9 | No hosting or deployment target decided. | Medium | Not blocking for Phase 0–1. A managed Postgres plus a Node host is enough. Decide before first client-facing report (Phase 4). |
+| R9 | ~~No hosting target decided.~~ | Resolved | Render recommended; host-agnostic contract rehearsed. See docs/DEPLOY.md and ADR-018. |
 
 ## 7. Strategic read (per the operating instructions)
 

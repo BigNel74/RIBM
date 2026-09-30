@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requirePagePermission } from "@/server/auth/guards";
+import { UserAdmin } from "./user-admin";
 import { db } from "@/server/db";
 import { ActionForm, SubmitButton, TextArea } from "@/ui/form";
 import { DataTable, PageHeader, Panel, StatusChip } from "@/ui/primitives";
@@ -12,9 +13,9 @@ const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "—");
 const OFFER_TONE = { PRIMARY: "critical", TEST: "gold", POST_SALE: "neutral", DEFERRED: "neutral", RETIRED: "neutral" } as const;
 
 export default async function SettingsPage() {
-  await requirePagePermission("users:manage");
+  const me = await requirePagePermission("users:manage");
 
-  const [users, frameworks, scoring, templates, offers] = await Promise.all([
+  const [users, frameworks, scoring, templates, offers, clients] = await Promise.all([
     db.user.findMany({
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true, email: true, role: true, active: true, client: { select: { displayName: true } } },
@@ -34,6 +35,7 @@ export default async function SettingsPage() {
     db.scoringVersion.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, code: true, label: true, status: true } }),
     db.reportTemplateVersion.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, code: true, label: true, status: true } }),
     db.offer.findMany({ orderBy: { createdAt: "asc" }, select: { id: true, name: true, status: true, validationState: true } }),
+    db.client.findMany({ orderBy: { displayName: "asc" }, select: { id: true, displayName: true } }),
   ]);
 
   return (
@@ -41,17 +43,7 @@ export default async function SettingsPage() {
       <PageHeader eyebrow="Admin" title="Settings" description="Users, methodology versions, and offer configuration. Version definitions are immutable once used." />
 
       <Panel title="Users">
-        <DataTable
-          columns={["Name", "Email", "Role", "Client", "Status"]}
-          empty="No users."
-          rows={users.map((u) => [
-            u.name,
-            <span key="e" className="font-mono text-xs">{u.email}</span>,
-            <StatusChip key="r">{u.role.replace("_", " ")}</StatusChip>,
-            u.client?.displayName ?? "—",
-            u.active ? <StatusChip key="s" tone="verified">Active</StatusChip> : <StatusChip key="s">Inactive</StatusChip>,
-          ])}
-        />
+        <UserAdmin users={users} clients={clients} currentUserId={me.id} />
       </Panel>
 
       <Panel title="Framework versions">

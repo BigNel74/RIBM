@@ -121,6 +121,20 @@ The authenticated layout, every page, and every server action verify the session
   - Anything else returns "not found," so report ids cannot be probed.
   - Internal roles also see withdrawn reports, with a banner.
 
+
+### ADR-018 · Deployment: one Node web instance + managed PostgreSQL + persistent disk; Render recommended — ACCEPTED (founder approved "deploy", 2026-09-30)
+
+- **Host-agnostic contract.**
+  - Build: `npm ci && npm run build`.
+  - Start: `npm run start:prod`, which runs migrations, then the idempotent seed, then `next start`.
+  - `GET /api/health` returns liveness plus a database check.
+  - `prisma` and `tsx` are runtime dependencies so the migrations and seed run on the host.
+  - Rehearsed from a fresh clone against an empty database (docs/DEPLOY.md).
+- **Why Render.** It keeps the app, Postgres, and the persistent disk in one dashboard, which is the lowest operating burden for a founder-run MVP. Railway and Fly.io satisfy the same contract.
+- **Exactly one instance.** Required because the login lockout is in-memory and evidence files are on the local disk. Scaling out needs a shared lockout store and object storage (Phase 7). This resolves BUILD_ASSESSMENT R9 to "Render recommended."
+- **Not verified.** This session could not reach render.com, so current plan names and prices are not confirmed. The founder chooses plans (DEPLOY.md §2).
+- **Pre-launch additions.** Admin user management (create, deactivate, set password, each signing the user out everywhere). A failed-login lockout of 5 attempts per email and IP per 15 minutes.
+
 ---
 
 ## Part B — Source-document conflicts
